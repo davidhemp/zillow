@@ -8,11 +8,11 @@ import numpy as np
 ## Loader from zips, kept as zips just for to play with ZipFile
 def loadNclean():
     logger.debug('loading properties data')
-    with ZipFile('properties_2016.csv.zip') as zipped:
+    with ZipFile('../properties_2016.csv.zip') as zipped:
         prop = pd.read_csv(zipped.open('properties_2016.csv'), low_memory=False)
 
     logger.debug('loading train data')
-    with ZipFile('train_2016_v2.csv.zip') as zipped:
+    with ZipFile('../train_2016_v2.csv.zip') as zipped:
         train = pd.read_csv(zipped.open('train_2016_v2.csv'))
 
     # prop.head()
