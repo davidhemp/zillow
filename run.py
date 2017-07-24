@@ -1,14 +1,17 @@
 #version 1 0.067
+#version 2
+#version 3
 
 import gc
 from zipfile import ZipFile
+from datetime import datetime
 
 import pandas as pd
 import numpy as np
 from sklearn.metrics import classification_report
 
 from debug import logger
-from load import loadNclean, simple_load_train
+from load import loadNclean
 from models import build_rf
 
 df_train, prop = loadNclean()
@@ -35,16 +38,15 @@ df_sub = pd.DataFrame(sub['ParcelId'].values, columns=['parcelid'])
 df_sub = pd.merge(df_sub, prop, on='parcelid')
 x_sub = df_sub.drop('parcelid', axis=1)
 
-logger.debug('Running estimator on required parcels')
-sub_pred = est.predict(x_sub)
-
-# print(np.mean(sub_pred.values))
-
-if len(sub_pred) != len(sub):
-    raise(ValueError('Lengths not equal, missing props'))
+#predict for each month
+logger.debug('Running predictions')
+for c in sub.columns[sub.columns != "ParcelId"]:
+    date = datetime.strptime(c, "%Y%m")
+    x_sub['month'] = date.month
+    logger.debug('Calculating for %s' % date.strftime("%b %y"))
+    sub_pred = est.predict(x_sub)
+    sub[c] = sub_pred
 
 logger.debug('Saving submition data')
-for c in sub.columns[sub.columns != "ParcelId"]:
-    sub[c] = sub_pred
 
 sub.to_csv('submit.csv', index=False, float_format='%.4f')

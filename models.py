@@ -13,18 +13,11 @@ def build_rf(x, y):
                                                         y,
                                                         test_size=0.2,
                                                         random_state=SEED)
-    logger.debug('Starting Grid search')
-    est = RandomForestRegressor(random_state=SEED)
-    params_grid = {
-            "n_estimators" : [100, 200, 300],
-            "max_features" : [10, 25],
-            "min_samples_leaf" : [1, 5, 10]}
-    grid = GridSearchCV(est, params_grid, verbose=2)
-    grid.fit(x_train, y_train)
-    print(grid.best_params_)
-
     logger.debug('Building estimator')
-    est.set_params(**grid.best_params_)
+    est = RandomForestRegressor(random_state=SEED,
+                                n_estimators=100,
+                                max_features=50,
+                                min_samples_leaf=10)
     est.fit(x_train, y_train)
     logger.debug('Making predictions')
     y_pred = est.predict(x_test)
