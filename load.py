@@ -27,7 +27,8 @@ def loadNclean():
     # Remove data that isn't useful, only a few of these anyway
     prop.drop(  ['architecturalstyletypeid',
                 'assessmentyear',
-                'propertycountylandusecode'],
+                'propertycountylandusecode',
+                'storytypeid'],
                 axis=1,
                 inplace=True)
 
@@ -37,7 +38,6 @@ def loadNclean():
                     'threequarterbathnbr',
                     'calculatedbathnbr',
                     'fireplaceflag',
-                    'basementsqft',
                     'taxdelinquencyflag',
                     'airconditioningtypeid',
                     'decktypeid']
@@ -49,30 +49,21 @@ def loadNclean():
 
     # location information
     logger.debug('Building location categories')
-    prop['fips'].replace(np.NaN, 0, inplace=True)
-
-    j = 65
-    for i in prop.fips.unique():
-        prop.loc[prop.fips == i, 'fips'] = chr(j)
-        j += 1
-    df_area = pd.get_dummies(prop.fips, prefix='area')
-    prop = pd.concat([prop, df_area], axis=1)
     prop.drop('fips', axis=1, inplace=True)
     prop.drop('rawcensustractandblock', axis=1, inplace=True)
     prop.drop('propertyzoningdesc', axis=1, inplace=True)
 
-    #month information
+    #date information
     logger.debug('Building month categories')
     train['date'] = pd.to_datetime(train.transactiondate)
     train['month'] = train.date.map(lambda x: x.month)
-    # df_month = pd.get_dummies(prop.month, prefix='month')
-    # print(df_month.columns)
-    # prop = pd.concat([prop, df_month], axis=1)
-    train.drop(['transactiondate', 'date'], axis=1, inplace=True)
+    df_month = pd.get_dummies(train.month, prefix='month')
+    train = pd.concat([train, df_month], axis=1)
+    train.drop(['transactiondate', 'date', 'month'], axis=1, inplace=True)
 
     ## join train and prop
     nulllist = prop.columns[prop.isnull().any()].tolist()
-    print(nulllist)
+    # print(nulllist)
     prop.fillna(0, inplace=True)
     df_train = pd.merge(prop, train, on='parcelid')
     return  df_train, prop
