@@ -49,6 +49,14 @@ def loadNclean():
 
     # location information
     logger.debug('Building location categories')
+    # prop['fips'].replace(np.NaN, 0, inplace=True)
+    #
+    # j = 65
+    # for i in prop.fips.unique():
+    #     prop.loc[prop.fips == i, 'fips'] = chr(j)
+    #     j += 1
+    # df_area = pd.get_dummies(prop.fips, prefix='area')
+    # prop = pd.concat([prop, df_area], axis=1)
     prop.drop('fips', axis=1, inplace=True)
     prop.drop('rawcensustractandblock', axis=1, inplace=True)
     prop.drop('propertyzoningdesc', axis=1, inplace=True)
