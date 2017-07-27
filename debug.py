@@ -10,7 +10,7 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 
 # create and setup console handler and file handler
 if sys.platform == "win32" or sys.platform == "win64":
-    filename = r"C:\Users\cyber_000\Desktop\Zillow\Version6\log.txt"
+    filename = r"C:\Users\cyber_000\Desktop\Zillow\Version8\log.txt"
 else:
     filename = "/home/david/Zillow/log.txt"
 

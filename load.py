@@ -43,7 +43,9 @@ def loadNclean():
                     'decktypeid']
     for c in change_list:
         prop[c] = prop[c].notnull().astype('int')
-
+    # for c in train.dtypes[train.dtypes==object].index.values:
+    #     train[c] = (train[c] == True)
+    
     #bedroomcnt 0 to 10 and 11+
     # prop.loc[prop.bedroomcnt > 10, 'bedroomcnt'] = 11
 
