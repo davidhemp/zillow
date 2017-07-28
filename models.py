@@ -1,84 +1,64 @@
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.base import TransformerMixin
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-from sklearn.linear_model import LinearRegression, BayesianRidge
-from sklearn.pipeline import Pipeline, make_pipeline, FeatureUnion
-from sklearn.metrics import mean_absolute_error, classification_report
-
+from sklearn.model_selection import train_test_split, GridSearchCV, KFold
+from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor, GradientBoostingRegressor
+from sklearn.linear_model import LinearRegression, BayesianRidge, Lars
+from sklearn.metrics import mean_absolute_error
+from xgboost import XGBRegressor
 import numpy as np
 import pandas as pd
 
 from debug import logger
-
-def classify_outliners(train):
-    no_std = 3
-    logger.debug('Outliners defined as +/- %0.1f std' %no_std)
-    std = no_std*train.logerror.std()
-    train['outliner'] = 0
-    train.loc[train.logerror > std, 'outliner']=1
-    train.loc[train.logerror < -std, 'outliner']=1
-
-    logger.debug('Building balanced train set')
-    df_train = train[train.outliner == 0].sample(n=1330)
-    df_train = pd.concat([df_train, train[train.outliner==1]])
-    df_train.drop(['parcelid', 'logerror'],
-                    axis=1,
-                    inplace=True)
-    x = df_train.drop('outliner', axis=1)
-    y = df_train.outliner
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
-
-    logger.debug('Training RF classifier')
-    clf = RandomForestClassifier(random_state=40)
-    params = {  'min_samples_leaf'  : 10,
-                'n_estimators'      : 50,
-                'max_features'      : None,
-                'min_samples_split' : 2,
-                'max_depth'         : 10}
-    clf.set_params(**params)
-    clf.fit(x_train, y_train)
-
-    logger.debug('Testing classifier')
-    y_true, y_pred = y_test, clf.predict(x_test)
-    y_pred_probs = clf.predict_proba(x_test)
-    print(classification_report(y_true, y_pred))
-    return clf, train
+from model_params import lvl1_params
 
 class Stacker():
     def fit(self, x, y):
         SEED = 148
-        pred_data = []
-        param_dict = {'n_estimators': 300,
-                        'max_features': 10,
-                        'min_samples_leaf': 10}
-        logger.debug('Building RandomForest model')
-        self.rf_est = RandomForestRegressor(**param_dict, random_state=SEED)
-        self.rf_est.fit(x, y)
-        logger.debug('Building LinearRegression model')
-        self.lr_est = LinearRegression()
-        self.lr_est.fit(x, y)
-
-    def predict(self, x):
-        pred_data = [self.rf_est.predict(x)]
-        logger.info("Std for RandomForest: %0.4f" %np.std(pred_data[0]))
-        pred_data.append(self.lr_est.predict(x))
-        logger.info("Std for LinearRegression: %0.4f" %np.std(pred_data[0]))
-        df_pred = pd.DataFrame(pred_data)
-        return df_pred.mean(axis=0)
-
-def build_stack(x,y):
-    RES = 10
-    SEED = 148
-    logger.debug('Splitting data')
-    x_train, x_test, y_train, y_test = train_test_split(x,
+        logger.debug('Training base models')
+        kf = KFold(n_splits=5)
+        debug_strs = [  'Building RandomForest model',
+                        'Building AdaBoostRegressor model',
+                        'Building GradientBoosting model',
+                        'Building XGBRegressor model',
+                        'Building BayesianRidge model']
+        self.models = [RandomForestRegressor(**lvl1_params[0], random_state=SEED),
+                        AdaBoostRegressor(),
+                        GradientBoostingRegressor(),
+                        XGBRegressor(),
+                        BayesianRidge()]
+        x_train, x_test, y_train, y_test = train_test_split(x,
                                                             y,
                                                             test_size=0.2,
                                                             random_state=SEED)
+        x_meta = np.zeros((len(self.models), len(y_test)))
+        for i, model in enumerate(self.models):
+            logger.debug(debug_strs[i])
+            model.fit(x_train, y_train)
+            x_meta[i] += model.predict(x_test)
+        logger.debug('Training meta model')
+        self.meta = LinearRegression()
+        self.meta.fit(x_meta.T, y_test)
 
+    def predict(self, x):
+        debug_strs = [  'Predicting with RandomForest model',
+                        'Predicting with AdaBoostRegressor model',
+                        'Predicting with GradientBoosting model',
+                        'Predicting with XGBRegressor model',
+                        'Predicting with BayesianRidge model']
+        x_meta = np.zeros((len(self.models), len(x)))
+        for i, model in enumerate(self.models):
+            logger.debug(debug_strs[i])
+            x_meta[i] += model.predict(x)
+        logger.debug('Predicting with meta model')
+        return self.meta.predict(x_meta.T)
+
+def build_stack(x, y):
+    SEED = 48
     logger.debug('Building stack')
     stack_model = Stacker()
+    x_train, x_hold_out, y_train, y_hold_out = \
+            train_test_split(x, y, test_size=0.2, random_state=SEED)
     stack_model.fit(x_train, y_train)
-    logger.debug('Making predictions')
-    y_pred = stack_model.predict(x_test)
-    logger.info("Mean abs error: {:0.5f}".format(mean_absolute_error(y_test, y_pred)))
+    logger.debug('Testing stack')
+    y_pred = stack_model.predict(x_hold_out)
+    abs_error = mean_absolute_error(y_hold_out, y_pred)
+    logger.info("Mean abs error: {:0.5f}".format(abs_error))
     return stack_model
