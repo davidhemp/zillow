@@ -4,6 +4,7 @@ import sys
 # create logger
 logger = logging.getLogger("Zillow")
 logger.setLevel(logging.DEBUG)
+# logger.setLevel(logging.INFO)
 
 # create formatter
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
